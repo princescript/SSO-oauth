@@ -1,0 +1,348 @@
+﻿<!-- wwwroot/auth.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Auth Page</title>
+
+    <style>
+        /* (UNCHANGED CSS — keeping your UI same) */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: Arial, sans-serif;
+        }
+
+        body {
+            min-height: 100vh;
+            background: #f4f6f9;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 900px;
+            background: white;
+            border-radius: 14px;
+            overflow: hidden;
+            display: flex;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+        }
+
+        .left {
+            flex: 1;
+            background: #2563eb;
+            color: white;
+            padding: 50px 40px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+            .left h1 {
+                font-size: 36px;
+                margin-bottom: 15px;
+            }
+
+            .left p {
+                font-size: 15px;
+                line-height: 1.7;
+                opacity: 0.9;
+            }
+
+        .right {
+            flex: 1;
+            padding: 40px;
+        }
+
+        .tabs {
+            display: flex;
+            margin-bottom: 30px;
+            border-bottom: 1px solid #ddd;
+        }
+
+        .tab-btn {
+            flex: 1;
+            padding: 14px;
+            border: none;
+            background: transparent;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            transition: 0.3s;
+        }
+
+            .tab-btn.active {
+                color: #2563eb;
+                border-bottom: 3px solid #2563eb;
+            }
+
+        .form-container {
+            display: none;
+        }
+
+            .form-container.active {
+                display: block;
+            }
+
+        .input-group {
+            margin-bottom: 18px;
+        }
+
+            .input-group label {
+                display: block;
+                margin-bottom: 6px;
+                font-size: 14px;
+                font-weight: 600;
+            }
+
+            .input-group input {
+                width: 100%;
+                padding: 12px;
+                border: 1px solid #d1d5db;
+                border-radius: 8px;
+                font-size: 15px;
+            }
+
+                .input-group input:focus {
+                    outline: none;
+                    border-color: #2563eb;
+                }
+
+        .btn {
+            width: 100%;
+            padding: 13px;
+            border: none;
+            border-radius: 8px;
+            background: #2563eb;
+            color: white;
+            font-size: 16px;
+            cursor: pointer;
+        }
+
+            .btn:hover {
+                background: #1d4ed8;
+            }
+
+        .message {
+            margin-top: 15px;
+            font-size: 14px;
+            text-align: center;
+        }
+
+        .success {
+            color: green;
+        }
+
+        .error {
+            color: red;
+        }
+
+        .footer-text {
+            margin-top: 18px;
+            text-align: center;
+            font-size: 14px;
+            color: #6b7280;
+        }
+
+        @media(max-width: 768px) {
+            .container {
+                flex-direction: column;
+            }
+
+            .left {
+                text-align: center;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="container">
+
+        <!-- Left -->
+        <div class="left">
+            <h1>Welcome Back</h1>
+            <p>Multi-tenant authentication system (ERP / INVEX) powered by ASP.NET Core.</p>
+        </div>
+
+        <!-- Right -->
+        <div class="right">
+
+            <div class="tabs">
+                <button class="tab-btn active" onclick="showTab(event, 'login')">Login</button>
+                <button class="tab-btn" onclick="showTab(event, 'register')">Register</button>
+            </div>
+
+            <!-- Login -->
+            <div id="login" class="form-container active">
+                <form onsubmit="loginUser(event)">
+                    <div class="input-group">
+                        <label>Email or Username</label>
+                        <input type="text" id="loginIdentifier" required />
+                    </div>
+
+                    <div class="input-group">
+                        <label>Password</label>
+                        <input type="password" id="loginPassword" required />
+                    </div>
+
+                    <button class="btn" type="submit">Login</button>
+                </form>
+            </div>
+
+            <!-- Register -->
+            <div id="register" class="form-container">
+                <form onsubmit="registerUser(event)">
+                    <div class="input-group">
+                        <label>Username</label>
+                        <input type="text" id="registerUsername" required />
+                    </div>
+
+                    <div class="input-group">
+                        <label>Email</label>
+                        <input type="email" id="registerEmail" required />
+                    </div>
+
+                    <div class="input-group">
+                        <label>Phone</label>
+                        <input type="text" id="registerPhone" />
+                    </div>
+
+                    <div class="input-group">
+                        <label>Password</label>
+                        <input type="password" id="registerPassword" required />
+                    </div>
+
+                    <button class="btn" type="submit">Create Account</button>
+                </form>
+            </div>
+
+            <div id="message" class="message"></div>
+
+            <p class="footer-text">ASP.NET Core Multi-Tenant Auth</p>
+
+        </div>
+    </div>
+
+    <script>
+
+     
+        // TENANT RESOLUTION (NEW)
+
+        const hostname = window.location.hostname;
+
+        let tenant =
+            hostname.includes("erp") ? "erp" :
+                hostname.includes("invex") ? "invex" :
+                    "unknown";
+
+        const params = new URLSearchParams(window.location.search);
+        const returnUrl = params.get("returnUrl");
+
+        function showMessage(text, isSuccess = true) {
+            const message = document.getElementById("message");
+            message.innerText = text;
+            message.className = isSuccess ? "message success" : "message error";
+        }
+
+        function showTab(event, tabId) {
+            document.querySelectorAll('.form-container')
+                .forEach(f => f.classList.remove('active'));
+
+            document.querySelectorAll('.tab-btn')
+                .forEach(b => b.classList.remove('active'));
+
+            document.getElementById(tabId).classList.add('active');
+            event.target.classList.add('active');
+        }
+ 
+        // LOGIN
+        async function loginUser(event) {
+            event.preventDefault();
+
+            const loginData = {
+                identifier: document.getElementById("loginIdentifier").value,
+                password: document.getElementById("loginPassword").value
+                
+            };
+            console.log(loginData);
+            try {
+                const response = await fetch(
+                    "https://localhost:7227/api/Auth/login",
+                    {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify(loginData)
+                    }
+                );
+
+                const result = await response.json();
+
+                if (response.ok) {
+
+                    showMessage(result.message || "Login successful");
+
+                    const sessionCode = result.data.session_code;
+
+                    // redirect back to client app
+                    if (returnUrl) {
+                        window.location.href =
+                            `${returnUrl}?code=${sessionCode}`;
+                    }
+                }
+                else {
+                    showMessage(result.message || "Login failed", false);
+                }
+
+            } catch (err) {
+                console.error(err);
+                showMessage("Server connection failed", false);
+            }
+        }
+
+        // REGISTER
+        async function registerUser(event) {
+            event.preventDefault();
+
+            const registerData = {
+                username: document.getElementById("registerUsername").value,
+                email: document.getElementById("registerEmail").value,
+                phone: document.getElementById("registerPhone").value,
+                password: document.getElementById("registerPassword").value
+            };
+
+            try {
+                const response = await fetch(
+                    "https://localhost:7227/api/Auth/register",
+                    {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify(registerData)
+                    }
+                );
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    showMessage(result.message || "Registration successful");
+                } else {
+                    showMessage(result.message || "Registration failed", false);
+                }
+
+            } catch (err) {
+                console.error(err);
+                showMessage("Server connection failed", false);
+            }
+        }
+
+    </script>
+
+</body>
+</html>
